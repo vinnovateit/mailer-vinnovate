@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { X, CheckCircle2, Send, Loader2 } from 'lucide-react';
 
 interface EmailDraftModalProps {
@@ -16,6 +16,7 @@ export default function EmailDraftModal({ company, isOpen, onClose, onGenerate, 
   const [isSending, setIsSending] = useState(false);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [aiData, setAiData] = useState<any>(null);
+  const [isManualDraft, setIsManualDraft] = useState(false);
   
   // Track which tab is active
   const [selectedVersion, setSelectedVersion] = useState<string>('A');
@@ -26,7 +27,9 @@ export default function EmailDraftModal({ company, isOpen, onClose, onGenerate, 
   // We created a dedicated action
   const handleCloseAndReset = () => {
     setAiData(null);
+    setIsManualDraft(false);
     setSelectedVersion('A');
+    setEditableVariations([]);
     onClose(); // This changes the isOpen prop in the parent
   };
 
@@ -51,6 +54,19 @@ export default function EmailDraftModal({ company, isOpen, onClose, onGenerate, 
     }
   };
 
+  const handleManualDraftClick = () => {
+    setIsManualDraft(true);
+    setEditableVariations([
+      {
+        version: 'Custom',
+        focus: 'Manual Draft',
+        subject: '',
+        body: `Warm regards,\nVarun B\nChairperson, VinnovateIT\nVIT Vellore`
+      }
+    ]);
+    setSelectedVersion('Custom');
+  };
+
   // Update specific fields when the user types in the inputs
   const handleEdit = (version: string, field: 'subject' | 'body', value: string) => {
     setEditableVariations((prev) => 
@@ -61,6 +77,15 @@ export default function EmailDraftModal({ company, isOpen, onClose, onGenerate, 
   const handleSendEmail = async () => {
     const finalEmail = editableVariations.find((v) => v.version === selectedVersion);
     if (!finalEmail) return;
+
+    if (!finalEmail.subject.trim()) {
+      alert("Please enter a subject line before sending.");
+      return;
+    }
+    if (!finalEmail.body.trim()) {
+      alert("Please write an email body before sending.");
+      return;
+    }
 
     setIsSending(true);
     try {
@@ -112,21 +137,29 @@ export default function EmailDraftModal({ company, isOpen, onClose, onGenerate, 
         <div className="flex-1 overflow-hidden bg-slate-50/50 p-6 flex flex-col items-center">
           
           {/* Initial State */}
-          {!aiData && !isGenerating && (
-            <div className="my-auto text-center space-y-4 max-w-sm">
+          {!aiData && !isManualDraft && !isGenerating && (
+            <div className="my-auto text-center space-y-4 max-w-md">
               <div className="bg-blue-50 text-blue-600 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
                 <Send size={24} />
               </div>
-              <h3 className="text-lg font-semibold text-slate-800">Ready to Analyze</h3>
+              <h3 className="text-lg font-semibold text-slate-800">Ready to Draft</h3>
               <p className="text-sm text-slate-500">
-                Our AI will research {company?.name} and generate 4 custom email variations based on VinHack 2026 goals.
+                Choose how you want to draft an email for {company?.name}.
               </p>
-              <button 
-                onClick={handleGenerateClick}
-                className="w-full mt-4 bg-blue-600 hover:bg-blue-700 text-white font-medium py-3 rounded-xl transition-colors shadow-sm"
-              >
-                Start AI Generation
-              </button>
+              <div className="flex flex-col gap-3 mt-4">
+                <button 
+                  onClick={handleGenerateClick}
+                  className="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-3 rounded-xl transition-colors shadow-sm"
+                >
+                  Start AI Generation
+                </button>
+                <button 
+                  onClick={handleManualDraftClick}
+                  className="w-full bg-slate-100 hover:bg-slate-200 text-slate-700 font-medium py-3 rounded-xl transition-colors border border-slate-200"
+                >
+                  Draft My Own
+                </button>
+              </div>
             </div>
           )}
 
@@ -140,59 +173,63 @@ export default function EmailDraftModal({ company, isOpen, onClose, onGenerate, 
           )}
 
           {/* Results State */}
-          {aiData && editableVariations.length > 0 && !isGenerating && (
+          {(aiData || isManualDraft) && editableVariations.length > 0 && !isGenerating && (
             <div className="w-full flex gap-6 h-full overflow-hidden">
               
-              {/* Left Column: AI Analysis */}
-              <div className="w-1/3 flex flex-col gap-4 overflow-y-auto pr-2">
-                <div className="bg-white p-5 rounded-xl shadow-sm border border-slate-100">
-                  <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">Company Intelligence</h4>
-                  <div className="space-y-4">
-                    <div>
-                      <span className="text-xs font-semibold text-slate-500 block mb-1">Industry</span>
-                      <span className="inline-block bg-slate-100 text-slate-700 text-xs px-2 py-1 rounded-md">{aiData.analysis.industry}</span>
-                    </div>
-                    <div>
-                      <span className="text-xs font-semibold text-slate-500 block mb-1">Fit Score</span>
-                      <div className="flex items-center gap-2">
-                        <div className="flex-1 h-2 bg-slate-100 rounded-full overflow-hidden">
-                          <div 
-                            className={`h-full ${aiData.analysis.fitScore > 75 ? 'bg-green-500' : aiData.analysis.fitScore > 50 ? 'bg-yellow-500' : 'bg-red-500'}`} 
-                            style={{ width: `${aiData.analysis.fitScore}%` }}
-                          />
-                        </div>
-                        <span className="text-sm font-bold text-slate-700">{aiData.analysis.fitScore}/100</span>
+              {/* Left Column: AI Analysis (only shown for AI generation) */}
+              {aiData && (
+                <div className="w-1/3 flex flex-col gap-4 overflow-y-auto pr-2">
+                  <div className="bg-white p-5 rounded-xl shadow-sm border border-slate-100">
+                    <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">Company Intelligence</h4>
+                    <div className="space-y-4">
+                      <div>
+                        <span className="text-xs font-semibold text-slate-500 block mb-1">Industry</span>
+                        <span className="inline-block bg-slate-100 text-slate-700 text-xs px-2 py-1 rounded-md">{aiData.analysis.industry}</span>
                       </div>
-                    </div>
-                    <div>
-                      <span className="text-xs font-semibold text-slate-500 block mb-1">Recommended Angle</span>
-                      <p className="text-sm text-slate-700 leading-relaxed">{aiData.analysis.recommendedAngle}</p>
+                      <div>
+                        <span className="text-xs font-semibold text-slate-500 block mb-1">Fit Score</span>
+                        <div className="flex items-center gap-2">
+                          <div className="flex-1 h-2 bg-slate-100 rounded-full overflow-hidden">
+                            <div 
+                              className={`h-full ${aiData.analysis.fitScore > 75 ? 'bg-green-500' : aiData.analysis.fitScore > 50 ? 'bg-yellow-500' : 'bg-red-500'}`} 
+                              style={{ width: `${aiData.analysis.fitScore}%` }}
+                            />
+                          </div>
+                          <span className="text-sm font-bold text-slate-700">{aiData.analysis.fitScore}/100</span>
+                        </div>
+                      </div>
+                      <div>
+                        <span className="text-xs font-semibold text-slate-500 block mb-1">Recommended Angle</span>
+                        <p className="text-sm text-slate-700 leading-relaxed">{aiData.analysis.recommendedAngle}</p>
+                      </div>
                     </div>
                   </div>
                 </div>
-              </div>
+              )}
 
-              {/* Right Column: Email Editor */}
-              <div className="w-2/3 flex flex-col bg-white rounded-xl shadow-sm border border-slate-100 overflow-hidden">
-                <div className="flex border-b border-slate-100 bg-slate-50/50">
-                  {
-                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                    editableVariations.map((variation: any) => (
+              {/* Email Editor */}
+              <div className={`${aiData ? 'w-2/3' : 'w-full'} flex flex-col bg-white rounded-xl shadow-sm border border-slate-100 overflow-hidden`}>
+                {!isManualDraft && (
+                  <div className="flex border-b border-slate-100 bg-slate-50/50">
+                    {
+                      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                      editableVariations.map((variation: any) => (
 
-                    <button
-                      key={variation.version}
-                      onClick={() => setSelectedVersion(variation.version)}
-                      className={`flex-1 px-4 py-3 text-sm font-medium transition-colors border-b-2 ${
-                        selectedVersion === variation.version 
-                          ? 'border-blue-600 text-blue-700 bg-white' 
-                          : 'border-transparent text-slate-500 hover:text-slate-700 hover:bg-slate-100'
-                      }`}
-                    >
-                      Version {variation.version}
-                      <span className="block text-xs font-normal text-slate-400 mt-0.5 truncate">{variation.focus}</span>
-                    </button>
-                  ))}
-                </div>
+                      <button
+                        key={variation.version}
+                        onClick={() => setSelectedVersion(variation.version)}
+                        className={`flex-1 px-4 py-3 text-sm font-medium transition-colors border-b-2 ${
+                          selectedVersion === variation.version 
+                            ? 'border-blue-600 text-blue-700 bg-white' 
+                            : 'border-transparent text-slate-500 hover:text-slate-700 hover:bg-slate-100'
+                        }`}
+                      >
+                        Version {variation.version}
+                        <span className="block text-xs font-normal text-slate-400 mt-0.5 truncate">{variation.focus}</span>
+                      </button>
+                    ))}
+                  </div>
+                )}
 
                 <div className="p-6 flex-1 flex flex-col gap-4 overflow-y-auto">
                   {
@@ -207,6 +244,7 @@ export default function EmailDraftModal({ company, isOpen, onClose, onGenerate, 
                             value={variation.subject} 
                             onChange={(e) => handleEdit(variation.version, 'subject', e.target.value)}
                             className="w-full text-sm p-3 rounded-lg border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all font-medium text-slate-800"
+                            placeholder="Enter email subject..."
                           />
                         </div>
                         <div className="flex-1 flex flex-col h-full">
@@ -214,7 +252,8 @@ export default function EmailDraftModal({ company, isOpen, onClose, onGenerate, 
                           <textarea 
                             value={variation.body} 
                             onChange={(e) => handleEdit(variation.version, 'body', e.target.value)}
-                            className="w-full flex-1 min-h-[250px] text-sm p-4 rounded-lg border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all resize-none text-slate-700 leading-relaxed"
+                            className="w-full flex-1 min-h-[300px] text-sm p-4 rounded-lg border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all resize-none text-slate-700 leading-relaxed"
+                            placeholder="Write your email body here..."
                           />
                         </div>
                       </div>
@@ -228,7 +267,7 @@ export default function EmailDraftModal({ company, isOpen, onClose, onGenerate, 
         </div>
 
         {/* Footer Actions */}
-        {aiData && !isGenerating && (
+        {(aiData || isManualDraft) && !isGenerating && (
           <div className="p-4 border-t border-slate-100 bg-slate-50 flex justify-between items-center">
             <div className="flex items-center gap-2 text-sm text-green-600 font-medium">
               <CheckCircle2 size={16} /> Ready to Dispatch
@@ -247,7 +286,7 @@ export default function EmailDraftModal({ company, isOpen, onClose, onGenerate, 
                 className="flex items-center gap-2 px-6 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-lg shadow-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {isSending ? <Loader2 size={16} className="animate-spin" /> : <Send size={16} />} 
-                {isSending ? 'Sending...' : `Send Version ${selectedVersion}`}
+                {isSending ? 'Sending...' : isManualDraft ? 'Send Email' : `Send Version ${selectedVersion}`}
               </button>
             </div>
           </div>

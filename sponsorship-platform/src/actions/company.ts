@@ -14,6 +14,7 @@ export async function uploadCompanies(companies: UploadCompanyInput[]) {
         await connectToDatabase();
         const formattedCompanies = companies.map(company => ({
         name: company.name,
+        email: company.email,
         website: company.website,
         industry: company.industry,
         notes: company.contactName ? `Contact: ${company.contactName}` : '',
