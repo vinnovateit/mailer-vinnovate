@@ -47,7 +47,7 @@ def send_emails(excel_path):
             msg = MIMEMultipart()
             msg["From"] = sender_email
             msg["To"] = email
-            msg["Subject"] = "add mail subject" #!!EDIT MAIL SUBJECT HERE !!
+            msg["Subject"] = "VinnovateIT Recruitments Are Live! Apply by 15 Oct" #!!EDIT MAIL SUBJECT HERE !!
             msg.attach(MIMEText(html_content, "html"))
             
             server.sendmail(sender_email, email, msg.as_string())
